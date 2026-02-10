@@ -39,8 +39,8 @@ export default class coinbase extends Exchange {
                 'CORS': true,
                 'spot': true,
                 'margin': false,
-                'swap': false,
-                'future': false,
+                'swap': true,
+                'future': true,
                 'option': false,
                 'addMargin': false,
                 'borrowCrossMargin': false,
@@ -97,9 +97,9 @@ export default class coinbase extends Exchange {
                 'fetchFundingHistory': false,
                 'fetchFundingInterval': false,
                 'fetchFundingIntervals': false,
-                'fetchFundingRate': false,
+                'fetchFundingRate': true,
                 'fetchFundingRateHistory': false,
-                'fetchFundingRates': false,
+                'fetchFundingRates': true,
                 'fetchGreeks': false,
                 'fetchIndexOHLCV': false,
                 'fetchIsolatedBorrowRate': false,
@@ -2352,6 +2352,75 @@ export default class coinbase extends Exchange {
             'quoteVolume': this.safeNumber(ticker, 'approximate_quote_24h_volume'),
             'info': ticker,
         }, market);
+    }
+    /**
+     * @method
+     * @name coinbase#fetchFundingRate
+     * @description fetch the current funding rate
+     * @see https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/products/get-product
+     * @param {string} symbol unified market symbol
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} a [funding rate structure]{@link https://docs.ccxt.com/#/?id=funding-rate-structure}
+     */
+    async fetchFundingRate(symbol, params = {}) {
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        const request = {
+            'product_id': market['id'],
+        };
+        const response = await this.v3PublicGetBrokerageMarketProductsProductId(this.extend(request, params));
+        const product = this.safeDictN(response, ['product', 'products'], response);
+        return this.parseFundingRate(product, market);
+    }
+    parseFundingRate(contract, market = undefined) {
+        const id = this.safeString(contract, 'product_id');
+        market = this.safeMarket(id, market);
+        const futureProductDetails = this.safeDict(contract, 'future_product_details', {});
+        const perpetualDetails = this.safeDict(futureProductDetails, 'perpetual_details', {});
+        const fundingDatetime = this.safeString(perpetualDetails, 'funding_time');
+        return {
+            'info': contract,
+            'symbol': market['symbol'],
+            'markPrice': this.safeNumber(contract, 'price'),
+            'indexPrice': undefined,
+            'interestRate': undefined,
+            'estimatedSettlePrice': undefined,
+            'timestamp': this.parse8601(fundingDatetime),
+            'datetime': fundingDatetime,
+            'fundingRate': this.safeNumber(perpetualDetails, 'funding_rate'),
+            'fundingTimestamp': this.parse8601(fundingDatetime),
+            'fundingDatetime': fundingDatetime,
+            'nextFundingRate': undefined,
+            'nextFundingTimestamp': undefined,
+            'nextFundingDatetime': undefined,
+            'previousFundingRate': undefined,
+            'previousFundingTimestamp': undefined,
+            'previousFundingDatetime': undefined,
+            'interval': undefined,
+        };
+    }
+    /**
+     * @method
+     * @name coinbase#fetchFundingRates
+     * @description fetch the funding rate for multiple markets
+     * @see https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/products/list-products
+     * @param {string[]} [symbols] list of unified market symbols
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} a dictionary of [funding rates structures]{@link https://docs.ccxt.com/#/?id=funding-rates-structure}, indexe by market symbols
+     */
+    async fetchFundingRates(symbols = undefined, params = {}) {
+        await this.loadMarkets();
+        const request = {
+            'product_type': 'FUTURE',
+            'contract_expiry_type': 'PERPETUAL',
+        };
+        const response = await this.v3PublicGetBrokerageMarketProducts(this.extend(request, params));
+        const products = this.safeList(response, 'products', []);
+        const rates = [];
+        for (let i = 0; i < products.length; i++) {
+            rates.push(this.parseFundingRate(products[i]));
+        }
+        return this.indexBy(this.filterByArray(rates, 'symbol', symbols, false), 'symbol');
     }
     parseCustomBalance(response, params = {}) {
         const balances = this.safeList2(response, 'data', 'accounts', []);
