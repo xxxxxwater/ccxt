@@ -18,6 +18,18 @@ Current feature list:
 - an out of the box unified API that is extremely easy to integrate
 - works in Node 10.4+, Python 3, PHP 8.1+, netstandard2.0/2.1, Go 1.20+ and web browsers
 
+## Recent Update (Coinbase Advanced Perpetuals)
+
+This update extends **Coinbase Advanced** derivative support in CCXT with:
+
+- enabled derivative capability flags for perpetual/futures markets (`swap`, `future`)
+- added unified funding endpoints:
+  - `fetchFundingRate(symbol)`
+  - `fetchFundingRates(symbols?)`
+- funding data is parsed from Coinbase Advanced `future_product_details.perpetual_details` fields (`funding_rate`, `funding_time`)
+
+These changes are intended to improve compatibility for Coinbase International-style perpetual workflows via the Coinbase Advanced API surface.
+
 ## See Also
 
 - <sub>[![TabTrader](https://user-images.githubusercontent.com/1294454/66755907-9c3e8880-eea1-11e9-846e-0bff349ceb87.png)](https://tab-trader.com/?utm_source=ccxt)</sub> **[TabTrader](https://tab-trader.com/?utm_source=ccxt)** – trading on all exchanges in one app. Available on **[Android](https://play.google.com/store/apps/details?id=com.tabtrader.android&referrer=utm_source%3Dccxt)** and **[iOS](https://itunes.apple.com/app/apple-store/id1095716562?mt=8)**!
